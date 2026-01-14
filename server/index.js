@@ -86,6 +86,32 @@ app.get('/api/collections/:dbName', requireConnection, async (req, res) => {
     }
 });
 
+app.get("/api/fields/:dbName/:collectionName", async (req, res) => {
+    if (!client) {
+        return res.status(400).json({ error: "Not connected to database" });
+    }
+
+    try {
+        const { dbName, collectionName } = req.params;
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+
+        // Get a single document to infer schema
+        const doc = await collection.findOne({});
+
+        if (!doc) {
+            return res.json([]);
+        }
+
+        // Extract all keys including nested ones
+        const fields = getDotNotationKeys(doc);
+        res.json(fields);
+    } catch (err) {
+        console.error("Error fetching fields:", err);
+        res.status(500).json({ error: "Failed to fetch fields" });
+    }
+});
+
 app.post('/api/execute', requireConnection, async (req, res) => {
     const { query, dbName } = req.body;
 
@@ -110,6 +136,19 @@ function formatBytes(bytes, decimals = 2) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+// Helper to get all dot-notation keys from an object
+function getDotNotationKeys(obj, prefix = '') {
+    let keys = [];
+    for (const key in obj) {
+        const newKey = prefix ? `${prefix}.${key}` : key;
+        keys.push(newKey);
+        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key]) && !(obj[key] instanceof Date) && !(obj[key]._bsontype)) {
+            keys = keys.concat(getDotNotationKeys(obj[key], newKey));
+        }
+    }
+    return keys;
 }
 
 // Simple query parser and executor

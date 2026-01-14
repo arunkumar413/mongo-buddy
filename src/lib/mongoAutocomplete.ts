@@ -210,10 +210,17 @@ export function createMongoCompletionProvider(
         });
       }
 
-      // Field suggestions after quotes or $ for field references
+      // Field suggestions
       const activeCollection = getActiveCollection();
       if (activeCollection) {
-        if (textBeforeCursor.match(/["']\s*$/) || textBeforeCursor.match(/\$\s*$/)) {
+        // Match if we are inside an object key position (after { or ,) or after a quote
+        // Also match if we are just typing a word that could be a field
+        if (
+          textBeforeCursor.match(/["']\s*$/) ||
+          textBeforeCursor.match(/\$\s*$/) ||
+          textBeforeCursor.match(/[{,]\s*$/) ||
+          textBeforeCursor.match(/[{,]\s*\w+$/)
+        ) {
           // Use dynamic fields if available, otherwise fall back to static
           const availableFields = fields.length > 0 ? fields : (collectionFields[activeCollection] || []);
 
