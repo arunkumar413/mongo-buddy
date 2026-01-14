@@ -129,6 +129,7 @@ const Index = () => {
                   onExecute={handleExecuteQuery}
                   isExecuting={isExecuting}
                   executionTime={executionTime}
+                  activeCollection={selectedCollection?.collection || null}
                 />
               </ResizablePanel>
 
