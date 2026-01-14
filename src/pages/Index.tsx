@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { DatabaseSidebar } from "@/components/DatabaseSidebar";
 import { QueryEditor } from "@/components/QueryEditor";
 import { ResultsPanel } from "@/components/ResultsPanel";
-import { QueryHistory } from "@/components/QueryHistory";
+import { QueryHistory, type HistoryItemType } from "@/components/QueryHistory";
 import { StatusBar } from "@/components/StatusBar";
 import { type Document } from "@/data/mockData";
 import {
@@ -47,6 +47,32 @@ const Index = () => {
   const [connectionUri, setConnectionUri] = useState("mongodb://localhost:27017");
   const [isConnecting, setIsConnecting] = useState(false);
   const [databases, setDatabases] = useState<any[]>([]);
+
+  // History state
+  const [history, setHistory] = useState<HistoryItemType[]>(() => {
+    const saved = localStorage.getItem("queryHistory");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("queryHistory", JSON.stringify(history));
+  }, [history]);
+
+  const addToHistory = useCallback((queryStr: string, duration: string) => {
+    setHistory(prev => {
+      const newItem: HistoryItemType = {
+        query: queryStr,
+        timestamp: new Date().toLocaleTimeString(),
+        duration
+      };
+      // Add to top, limit to 50 items
+      return [newItem, ...prev].slice(0, 50);
+    });
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+  }, []);
 
   const handleConnect = async () => {
     setIsConnecting(true);
@@ -122,7 +148,9 @@ const Index = () => {
 
       setResults(Array.isArray(data) ? data : [data]);
       const endTime = performance.now();
-      setExecutionTime(`${Math.round(endTime - startTime)}ms`);
+      const duration = `${Math.round(endTime - startTime)}ms`;
+      setExecutionTime(duration);
+      addToHistory(query, duration);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Query execution failed");
       setResults([]);
@@ -190,7 +218,11 @@ const Index = () => {
 
           {/* Query History */}
           <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <QueryHistory onSelectQuery={handleSelectFromHistory} />
+            <QueryHistory
+              history={history}
+              onSelectQuery={handleSelectFromHistory}
+              onClearHistory={clearHistory}
+            />
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
