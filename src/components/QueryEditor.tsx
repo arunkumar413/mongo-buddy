@@ -1,5 +1,5 @@
-import { useRef, useCallback } from "react";
-import Editor, { OnMount } from "@monaco-editor/react";
+import { useRef, useCallback, useEffect } from "react";
+import Editor, { OnMount, useMonaco } from "@monaco-editor/react";
 import { Play, Save, Clock, Trash2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { createMongoCompletionProvider } from "@/lib/mongoAutocomplete";
 
 interface QueryEditorProps {
   query: string;
@@ -21,6 +22,7 @@ interface QueryEditorProps {
   onExecute: () => void;
   isExecuting: boolean;
   executionTime: string | null;
+  activeCollection: string | null;
 }
 
 export function QueryEditor({
@@ -29,8 +31,38 @@ export function QueryEditor({
   onExecute,
   isExecuting,
   executionTime,
+  activeCollection,
 }: QueryEditorProps) {
   const editorRef = useRef<unknown>(null);
+  const monaco = useMonaco();
+  const completionProviderRef = useRef<{ dispose: () => void } | null>(null);
+
+  // Register MongoDB autocomplete provider
+  useEffect(() => {
+    if (monaco) {
+      // Dispose previous provider if exists
+      if (completionProviderRef.current) {
+        completionProviderRef.current.dispose();
+      }
+
+      // Register new provider with current collection context
+      const provider = createMongoCompletionProvider(
+        monaco,
+        () => activeCollection
+      );
+      
+      completionProviderRef.current = monaco.languages.registerCompletionItemProvider(
+        "javascript",
+        provider
+      );
+
+      return () => {
+        if (completionProviderRef.current) {
+          completionProviderRef.current.dispose();
+        }
+      };
+    }
+  }, [monaco, activeCollection]);
 
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
@@ -49,6 +81,11 @@ export function QueryEditor({
       <div className="panel-header">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold">Query</span>
+          {activeCollection && (
+            <span className="text-xs text-primary font-mono bg-primary/10 px-2 py-0.5 rounded">
+              {activeCollection}
+            </span>
+          )}
           {executionTime && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -147,6 +184,10 @@ export function QueryEditor({
             tabSize: 2,
             folding: true,
             bracketPairColorization: { enabled: true },
+            quickSuggestions: true,
+            suggestOnTriggerCharacters: true,
+            acceptSuggestionOnEnter: "on",
+            snippetSuggestions: "inline",
           }}
         />
       </div>
