@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Clock, Play, Trash2 } from "lucide-react";
 import { queryHistory } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ interface QueryHistoryProps {
   onSelectQuery: (query: string) => void;
 }
 
-export function QueryHistory({ onSelectQuery }: QueryHistoryProps) {
+export const QueryHistory = memo(function QueryHistory({ onSelectQuery }: QueryHistoryProps) {
   return (
     <div className="h-full flex flex-col bg-sidebar border-l border-border">
       {/* Header */}
@@ -44,7 +45,7 @@ export function QueryHistory({ onSelectQuery }: QueryHistoryProps) {
       </div>
     </div>
   );
-}
+});
 
 interface HistoryItemProps {
   query: string;

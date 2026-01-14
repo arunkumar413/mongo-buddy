@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Table, Code, Copy, Download, ChevronDown, ChevronRight, FileJson } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ interface ResultsPanelProps {
 
 type ViewMode = "table" | "json";
 
-export function ResultsPanel({ results, error }: ResultsPanelProps) {
+export const ResultsPanel = memo(function ResultsPanel({ results, error }: ResultsPanelProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
@@ -74,18 +74,16 @@ export function ResultsPanel({ results, error }: ResultsPanelProps) {
           <div className="flex items-center bg-secondary rounded-md p-0.5">
             <button
               onClick={() => setViewMode("table")}
-              className={`tab-button px-2 py-1 rounded text-xs flex items-center gap-1 border-0 ${
-                viewMode === "table" ? "bg-muted text-foreground" : "text-muted-foreground"
-              }`}
+              className={`tab-button px-2 py-1 rounded text-xs flex items-center gap-1 border-0 ${viewMode === "table" ? "bg-muted text-foreground" : "text-muted-foreground"
+                }`}
             >
               <Table className="h-3 w-3" />
               Table
             </button>
             <button
               onClick={() => setViewMode("json")}
-              className={`tab-button px-2 py-1 rounded text-xs flex items-center gap-1 border-0 ${
-                viewMode === "json" ? "bg-muted text-foreground" : "text-muted-foreground"
-              }`}
+              className={`tab-button px-2 py-1 rounded text-xs flex items-center gap-1 border-0 ${viewMode === "json" ? "bg-muted text-foreground" : "text-muted-foreground"
+                }`}
             >
               <Code className="h-3 w-3" />
               JSON
@@ -131,7 +129,7 @@ export function ResultsPanel({ results, error }: ResultsPanelProps) {
       </div>
     </div>
   );
-}
+});
 
 interface TableViewProps {
   results: Document[];

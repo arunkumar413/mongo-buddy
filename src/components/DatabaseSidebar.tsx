@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -38,7 +38,7 @@ interface DatabaseSidebarProps {
   onNewConnection: () => void;
 }
 
-export function DatabaseSidebar({
+export const DatabaseSidebar = memo(function DatabaseSidebar({
   onSelectCollection,
   selectedCollection,
   databases,
@@ -139,7 +139,7 @@ export function DatabaseSidebar({
       </div>
     </div>
   );
-}
+});
 
 interface DatabaseTreeItemProps {
   database: DatabaseType;

@@ -85,14 +85,14 @@ const Index = () => {
     }
   };
 
-  const handleSelectCollection = (db: string, collection: string) => {
+  const handleSelectCollection = useCallback((db: string, collection: string) => {
     setSelectedCollection({ db, collection });
     setQuery(`db.${collection}.find({})`);
     // Optionally auto-execute or just clear results
     setResults([]);
     setError(null);
     setExecutionTime(null);
-  };
+  }, []);
 
   const handleExecuteQuery = useCallback(async () => {
     if (!selectedCollection) {
@@ -131,9 +131,17 @@ const Index = () => {
     }
   }, [query, selectedCollection]);
 
-  const handleSelectFromHistory = (historyQuery: string) => {
+  const handleSelectFromHistory = useCallback((historyQuery: string) => {
     setQuery(historyQuery);
-  };
+  }, []);
+
+  const handleRefreshDatabases = useCallback(() => {
+    fetchDatabases();
+  }, []);
+
+  const handleNewConnection = useCallback(() => {
+    setShowConnectDialog(true);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -147,8 +155,8 @@ const Index = () => {
               onSelectCollection={handleSelectCollection}
               selectedCollection={selectedCollection}
               databases={databases}
-              onRefresh={fetchDatabases}
-              onNewConnection={() => setShowConnectDialog(true)}
+              onRefresh={handleRefreshDatabases}
+              onNewConnection={handleNewConnection}
             />
           </ResizablePanel>
 
