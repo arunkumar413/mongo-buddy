@@ -1,25 +1,34 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { DatabaseSidebar } from "@/components/DatabaseSidebar";
 import { QueryEditor } from "@/components/QueryEditor";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { QueryHistory } from "@/components/QueryHistory";
 import { StatusBar } from "@/components/StatusBar";
-import { mockDocuments, type Document } from "@/data/mockData";
+import { type Document } from "@/data/mockData";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 const defaultQuery = `// Select a collection and write your query
 // Examples:
 db.users.find({})
-db.products.find({ price: { $lt: 100 } })
-db.orders.aggregate([
-  { $match: { status: "delivered" } },
-  { $group: { _id: "$userId", total: { $sum: "$total" } } }
-])`;
+db.products.find({ price: { $lt: 100 } })`;
+
+const API_URL = "http://localhost:3001/api";
 
 const Index = () => {
   const [selectedCollection, setSelectedCollection] = useState<{
@@ -32,71 +41,95 @@ const Index = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionTime, setExecutionTime] = useState<string | null>(null);
 
+  // Connection state
+  const [isConnected, setIsConnected] = useState(false);
+  const [showConnectDialog, setShowConnectDialog] = useState(true);
+  const [connectionUri, setConnectionUri] = useState("mongodb://localhost:27017");
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [databases, setDatabases] = useState<any[]>([]);
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    try {
+      const res = await fetch(`${API_URL}/connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uri: connectionUri }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to connect");
+      }
+
+      setIsConnected(true);
+      setShowConnectDialog(false);
+      toast.success("Connected to MongoDB");
+      fetchDatabases();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Connection failed");
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const fetchDatabases = async () => {
+    try {
+      const res = await fetch(`${API_URL}/databases`);
+      if (!res.ok) throw new Error("Failed to fetch databases");
+      const data = await res.json();
+      setDatabases(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load databases");
+    }
+  };
+
   const handleSelectCollection = (db: string, collection: string) => {
     setSelectedCollection({ db, collection });
     setQuery(`db.${collection}.find({})`);
-    
-    // Auto-load collection data
-    const key = `${db}.${collection}`;
-    const docs = mockDocuments[key] || [];
-    setResults(docs);
+    // Optionally auto-execute or just clear results
+    setResults([]);
     setError(null);
-    setExecutionTime("< 1ms");
+    setExecutionTime(null);
   };
 
-  const handleExecuteQuery = useCallback(() => {
+  const handleExecuteQuery = useCallback(async () => {
+    if (!selectedCollection) {
+      toast.error("Please select a collection first");
+      return;
+    }
+
     setIsExecuting(true);
     setError(null);
+    const startTime = performance.now();
 
-    // Simulate query execution
-    setTimeout(() => {
-      try {
-        // Parse the query to determine collection
-        const match = query.match(/db\.(\w+)\./);
-        if (!match) {
-          throw new Error("Invalid query format. Use db.collection.find() syntax.");
-        }
+    try {
+      const res = await fetch(`${API_URL}/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          dbName: selectedCollection.db
+        }),
+      });
 
-        const collectionName = match[1];
-        let foundDocs: Document[] = [];
+      const data = await res.json();
 
-        // Search in mock data
-        for (const [key, docs] of Object.entries(mockDocuments)) {
-          if (key.endsWith(`.${collectionName}`)) {
-            foundDocs = docs;
-            break;
-          }
-        }
-
-        // Simulate filtering for specific queries
-        if (query.includes("$lt: 100") && collectionName === "products") {
-          foundDocs = foundDocs.filter((doc) => {
-            const price = doc.price as number | undefined;
-            return price !== undefined && price < 100;
-          });
-        }
-
-        if (query.includes('status: "delivered"') && collectionName === "orders") {
-          foundDocs = foundDocs.filter((doc) => doc.status === "delivered");
-        }
-
-        if (query.includes('email:')) {
-          const emailMatch = query.match(/email:\s*["']([^"']+)["']/);
-          if (emailMatch) {
-            foundDocs = foundDocs.filter((doc) => doc.email === emailMatch[1]);
-          }
-        }
-
-        setResults(foundDocs);
-        setExecutionTime(`${Math.floor(Math.random() * 30 + 10)}ms`);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Query execution failed");
-        setResults([]);
-      } finally {
-        setIsExecuting(false);
+      if (!res.ok) {
+        throw new Error(data.error || "Query execution failed");
       }
-    }, 300);
-  }, [query]);
+
+      setResults(Array.isArray(data) ? data : [data]);
+      const endTime = performance.now();
+      setExecutionTime(`${Math.round(endTime - startTime)}ms`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Query execution failed");
+      setResults([]);
+    } finally {
+      setIsExecuting(false);
+    }
+  }, [query, selectedCollection]);
 
   const handleSelectFromHistory = (historyQuery: string) => {
     setQuery(historyQuery);
@@ -105,7 +138,7 @@ const Index = () => {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header />
-      
+
       <div className="flex-1 flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
           {/* Database Sidebar */}
@@ -113,9 +146,12 @@ const Index = () => {
             <DatabaseSidebar
               onSelectCollection={handleSelectCollection}
               selectedCollection={selectedCollection}
+              databases={databases}
+              onRefresh={fetchDatabases}
+              onNewConnection={() => setShowConnectDialog(true)}
             />
           </ResizablePanel>
-          
+
           <ResizableHandle withHandle />
 
           {/* Main Content */}
@@ -155,6 +191,33 @@ const Index = () => {
         selectedCollection={selectedCollection}
         documentCount={results.length}
       />
+
+      <Dialog open={showConnectDialog} onOpenChange={setShowConnectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Connect to MongoDB</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="uri">Connection String</Label>
+              <Input
+                id="uri"
+                value={connectionUri}
+                onChange={(e) => setConnectionUri(e.target.value)}
+                placeholder="mongodb://localhost:27017"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConnectDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConnect} disabled={isConnecting}>
+              {isConnecting ? "Connecting..." : "Connect"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
