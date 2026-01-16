@@ -105,10 +105,11 @@ interface CompletionSuggestion {
 
 export function createMongoCompletionProvider(
   monaco: Monaco,
-  getActiveCollection: () => string | null
+  getActiveCollection: () => string | null,
+  fields: string[] = []
 ) {
   return {
-    triggerCharacters: [".", "$", '"', "'"],
+    triggerCharacters: [".", "$", '"', "'", "{", ","],
     provideCompletionItems: (
       model: { getWordUntilPosition: (pos: { lineNumber: number; column: number }) => { startColumn: number; endColumn: number }; getLineContent: (line: number) => string },
       position: { lineNumber: number; column: number }
@@ -157,7 +158,7 @@ export function createMongoCompletionProvider(
       }
 
       // Inside aggregate array, suggest stages
-      if (textBeforeCursor.match(/aggregate\s*\(\s*\[/) || textBeforeCursor.match(/,\s*$/)) {
+      if (textBeforeCursor.match(/aggregate\s*\(\s*\[/) || textBeforeCursor.match(/,\s*$/) || textBeforeCursor.match(/\[\s*$/)) {
         aggregationStages.forEach((stage) => {
           suggestions.push({
             label: stage.label,
@@ -195,13 +196,35 @@ export function createMongoCompletionProvider(
             range,
           });
         });
+
+        // Also suggest aggregation stages here if we are potentially starting a stage
+        aggregationStages.forEach((stage) => {
+          suggestions.push({
+            label: stage.label,
+            kind: monaco.languages.CompletionItemKind.Function,
+            detail: stage.detail,
+            insertText: stage.insertText,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range,
+          });
+        });
       }
 
-      // Field suggestions after quotes or $ for field references
+      // Field suggestions
       const activeCollection = getActiveCollection();
-      if (activeCollection && collectionFields[activeCollection]) {
-        if (textBeforeCursor.match(/["']\s*$/) || textBeforeCursor.match(/\$\s*$/)) {
-          collectionFields[activeCollection].forEach((field) => {
+      if (activeCollection) {
+        // Match if we are inside an object key position (after { or ,) or after a quote
+        // Also match if we are just typing a word that could be a field
+        if (
+          textBeforeCursor.match(/["']\s*$/) ||
+          textBeforeCursor.match(/\$\s*$/) ||
+          textBeforeCursor.match(/[{,]\s*$/) ||
+          textBeforeCursor.match(/[{,]\s*\w+$/)
+        ) {
+          // Use dynamic fields if available, otherwise fall back to static
+          const availableFields = fields.length > 0 ? fields : (collectionFields[activeCollection] || []);
+
+          availableFields.forEach((field) => {
             suggestions.push({
               label: field,
               kind: monaco.languages.CompletionItemKind.Field,

@@ -1,5 +1,6 @@
+import { memo } from "react";
 import { Clock, Play, Trash2 } from "lucide-react";
-import { queryHistory } from "@/data/mockData";
+
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -7,11 +8,23 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-interface QueryHistoryProps {
-  onSelectQuery: (query: string) => void;
+export interface HistoryItemType {
+  query: string;
+  timestamp: string;
+  duration: string;
 }
 
-export function QueryHistory({ onSelectQuery }: QueryHistoryProps) {
+interface QueryHistoryProps {
+  history: HistoryItemType[];
+  onSelectQuery: (query: string) => void;
+  onClearHistory: () => void;
+}
+
+export const QueryHistory = memo(function QueryHistory({
+  history,
+  onSelectQuery,
+  onClearHistory
+}: QueryHistoryProps) {
   return (
     <div className="h-full flex flex-col bg-sidebar border-l border-border">
       {/* Header */}
@@ -22,7 +35,13 @@ export function QueryHistory({ onSelectQuery }: QueryHistoryProps) {
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={onClearHistory}
+              disabled={history.length === 0}
+            >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
@@ -32,19 +51,25 @@ export function QueryHistory({ onSelectQuery }: QueryHistoryProps) {
 
       {/* History List */}
       <div className="flex-1 overflow-y-auto scrollbar-thin">
-        {queryHistory.map((item, index) => (
-          <HistoryItem
-            key={index}
-            query={item.query}
-            timestamp={item.timestamp}
-            duration={item.duration}
-            onSelect={() => onSelectQuery(item.query)}
-          />
-        ))}
+        {history.length === 0 ? (
+          <div className="p-4 text-center text-xs text-muted-foreground">
+            No query history
+          </div>
+        ) : (
+          history.map((item, index) => (
+            <HistoryItem
+              key={index}
+              query={item.query}
+              timestamp={item.timestamp}
+              duration={item.duration}
+              onSelect={() => onSelectQuery(item.query)}
+            />
+          ))
+        )}
       </div>
     </div>
   );
-}
+});
 
 interface HistoryItemProps {
   query: string;

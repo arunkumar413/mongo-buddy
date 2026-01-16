@@ -1,15 +1,14 @@
-import { useState } from "react";
-import { 
-  ChevronRight, 
-  ChevronDown, 
-  Database, 
-  FolderOpen, 
+import { useState, memo } from "react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Database,
+  FolderOpen,
   FileJson,
   Search,
   RefreshCw,
   Plus
 } from "lucide-react";
-import { mockDatabases, type Database as DBType, type Collection } from "@/data/mockData";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,13 +17,35 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+export interface Collection {
+  name: string;
+  documentCount?: number;
+  size?: string;
+  type?: string;
+}
+
+export interface DatabaseType {
+  name: string;
+  collections: Collection[];
+  sizeOnDisk?: number;
+}
+
 interface DatabaseSidebarProps {
   onSelectCollection: (db: string, collection: string) => void;
   selectedCollection: { db: string; collection: string } | null;
+  databases: DatabaseType[];
+  onRefresh: () => void;
+  onNewConnection: () => void;
 }
 
-export function DatabaseSidebar({ onSelectCollection, selectedCollection }: DatabaseSidebarProps) {
-  const [expandedDbs, setExpandedDbs] = useState<Set<string>>(new Set(["ecommerce"]));
+export const DatabaseSidebar = memo(function DatabaseSidebar({
+  onSelectCollection,
+  selectedCollection,
+  databases,
+  onRefresh,
+  onNewConnection
+}: DatabaseSidebarProps) {
+  const [expandedDbs, setExpandedDbs] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
 
   const toggleDb = (dbName: string) => {
@@ -37,7 +58,7 @@ export function DatabaseSidebar({ onSelectCollection, selectedCollection }: Data
     setExpandedDbs(newExpanded);
   };
 
-  const filteredDatabases = mockDatabases.filter(db => 
+  const filteredDatabases = databases.filter(db =>
     db.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     db.collections.some(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -53,7 +74,7 @@ export function DatabaseSidebar({ onSelectCollection, selectedCollection }: Data
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRefresh}>
                 <RefreshCw className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
@@ -61,7 +82,7 @@ export function DatabaseSidebar({ onSelectCollection, selectedCollection }: Data
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onNewConnection}>
                 <Plus className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
@@ -89,7 +110,7 @@ export function DatabaseSidebar({ onSelectCollection, selectedCollection }: Data
         <div className="px-2 mb-2">
           <div className="tree-item text-primary">
             <Database className="h-4 w-4" />
-            <span className="text-xs font-medium">localhost:27017</span>
+            <span className="text-xs font-medium">Connected</span>
           </div>
         </div>
 
@@ -110,18 +131,18 @@ export function DatabaseSidebar({ onSelectCollection, selectedCollection }: Data
       {/* Footer Stats */}
       <div className="border-t border-border p-2">
         <div className="text-xs text-muted-foreground">
-          <span className="text-primary font-medium">{mockDatabases.length}</span> databases, 
+          <span className="text-primary font-medium">{databases.length}</span> databases,
           <span className="text-primary font-medium ml-1">
-            {mockDatabases.reduce((sum, db) => sum + db.collections.length, 0)}
+            {databases.reduce((sum, db) => sum + db.collections.length, 0)}
           </span> collections
         </div>
       </div>
     </div>
   );
-}
+});
 
 interface DatabaseTreeItemProps {
-  database: DBType;
+  database: DatabaseType;
   isExpanded: boolean;
   onToggle: () => void;
   onSelectCollection: (db: string, collection: string) => void;
@@ -194,9 +215,11 @@ function CollectionTreeItem({ collection, isSelected, onSelect }: CollectionTree
     >
       <FileJson className="h-3.5 w-3.5 text-info" />
       <span className="text-xs">{collection.name}</span>
-      <span className="ml-auto text-[10px] text-muted-foreground">
-        {collection.documentCount.toLocaleString()}
-      </span>
+      {collection.documentCount !== undefined && (
+        <span className="ml-auto text-[10px] text-muted-foreground">
+          {collection.documentCount.toLocaleString()}
+        </span>
+      )}
     </button>
   );
 }

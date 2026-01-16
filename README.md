@@ -1,73 +1,64 @@
-# Welcome to your Lovable project
+# MongoDB Studio
 
-## Project info
+A modern, developer-friendly MongoDB GUI built with React, Tailwind CSS, and Node.js.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
+- **Query Editor**: Monaco-based editor with rich autocomplete for MongoDB operators and field names.
+- **Results Viewer**: JSON and Table views for query results.
+- **Query History**: Persisted history of your executed queries.
+- **Dark/Light Mode**: sleek themes for any time of day.
+- **Local Backend**: Secure connection handling via a local Express server.
 
-## How can I edit this code?
+## Prerequisites
+- Node.js (v18 or higher)
+- MongoDB (running locally or a connection string)
 
-There are several ways of editing your application.
+## Installation
 
-**Use Lovable**
+1.  **Install Frontend Dependencies**:
+    ```bash
+    npm install
+    ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+2.  **Install Backend Dependencies**:
+    ```bash
+    cd server && npm install && cd ..
+    ```
 
-Changes made via Lovable will be committed automatically to this repo.
+## Running the Project
 
-**Use your preferred IDE**
+The easiest way to run the project is to start both the frontend and backend with a single command:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm run dev:all
 ```
 
-**Edit a file directly in GitHub**
+This will start:
+- **Frontend**: http://localhost:8080
+- **Backend**: http://localhost:3001
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Alternative (Separate Terminals)
 
-**Use GitHub Codespaces**
+If you prefer running them separately:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1.  **Backend**:
+    ```bash
+    npm run dev:server
+    ```
 
-## What technologies are used for this project?
+2.  **Frontend**:
+    ```bash
+    npm run dev
+    ```
 
-This project is built with:
+## Usage
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1.  Open the frontend in your browser.
+2.  Click **Connect** in the top right (or the dialog on start).
+3.  Enter your MongoDB connection string (default: `mongodb://localhost:27017`).
+4.  Select a database and collection from the sidebar.
+5.  Start querying!
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+    ```javascript
+    db.users.find({})
+    ```

@@ -23,6 +23,7 @@ interface QueryEditorProps {
   isExecuting: boolean;
   executionTime: string | null;
   activeCollection: string | null;
+  fields?: string[];
 }
 
 export function QueryEditor({
@@ -32,6 +33,7 @@ export function QueryEditor({
   isExecuting,
   executionTime,
   activeCollection,
+  fields = [],
 }: QueryEditorProps) {
   const editorRef = useRef<unknown>(null);
   const monaco = useMonaco();
@@ -48,9 +50,10 @@ export function QueryEditor({
       // Register new provider with current collection context
       const provider = createMongoCompletionProvider(
         monaco,
-        () => activeCollection
+        () => activeCollection,
+        fields
       );
-      
+
       completionProviderRef.current = monaco.languages.registerCompletionItemProvider(
         "javascript",
         provider
