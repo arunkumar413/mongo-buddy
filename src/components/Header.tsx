@@ -74,6 +74,22 @@ export function Header() {
           </TooltipTrigger>
           <TooltipContent>Settings</TooltipContent>
         </Tooltip>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-2 text-xs"
+          onClick={() => {
+            if (localStorage.getItem("token")) {
+              localStorage.removeItem("token");
+              window.location.reload();
+            } else {
+              window.location.href = "/login";
+            }
+          }}
+        >
+          {localStorage.getItem("token") ? "Logout" : "Login"}
+        </Button>
       </div>
     </header>
   );

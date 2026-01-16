@@ -25,6 +25,30 @@ A modern, developer-friendly MongoDB GUI built with React, Tailwind CSS, and Nod
     cd server && npm install && cd ..
     ```
 
+## Configuration
+
+The application requires a `.env` file in the `server` directory to manage authentication and database connections.
+
+1.  Create a file named `.env` in the `server` directory.
+2.  Add the following variables:
+
+    ```env
+    PORT=3001
+    
+    # Authentication
+    AUTH_PASSWORD=your_secure_password
+    JWT_SECRET=your_jwt_secret_key
+
+    # Database Connections (Format: DB_URI_<ENV_NAME>)
+    DB_URI_LOCAL=mongodb://localhost:27017
+    DB_URI_DEV=mongodb://dev-server:27017/dev_db
+    DB_URI_PROD=mongodb://prod-server:27017/prod_db
+    ```
+
+- **AUTH_PASSWORD**: The password required to log in to the application.
+- **JWT_SECRET**: A secret key used to sign JSON Web Tokens.
+- **DB_URI_***: Connection strings for different environments. The app will automatically detect variables starting with `DB_URI_` and display them in the environment dropdown.
+
 ## Running the Project
 
 The easiest way to run the project is to start both the frontend and backend with a single command:

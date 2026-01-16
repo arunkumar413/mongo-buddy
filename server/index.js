@@ -2,6 +2,7 @@ const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -12,6 +13,15 @@ app.use(express.json());
 let client = null;
 let activeDb = null;
 
+// Load environments from .env
+const environments = {};
+Object.keys(process.env).forEach(key => {
+    if (key.startsWith('DB_URI_')) {
+        const envName = key.replace('DB_URI_', '');
+        environments[envName] = process.env[key];
+    }
+});
+
 // Middleware to check if connected
 const requireConnection = (req, res, next) => {
     if (!client) {
@@ -20,10 +30,44 @@ const requireConnection = (req, res, next) => {
     next();
 };
 
-app.post('/api/connect', async (req, res) => {
-    const { uri } = req.body;
+// Auth Middleware
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Forbidden' });
+        req.user = user;
+        next();
+    });
+};
+
+app.post('/api/login', (req, res) => {
+    const { password } = req.body;
+    if (password === process.env.AUTH_PASSWORD) {
+        const accessToken = jwt.sign({ name: 'user' }, process.env.JWT_SECRET);
+        res.json({ accessToken });
+    } else {
+        res.status(401).json({ error: 'Invalid password' });
+    }
+});
+
+app.get('/api/environments', authenticateToken, (req, res) => {
+    res.json(Object.keys(environments));
+});
+
+app.post('/api/connect', authenticateToken, async (req, res) => {
+    const { environment } = req.body;
+
+    if (!environment) {
+        return res.status(400).json({ error: 'Environment is required' });
+    }
+
+    const uri = environments[environment];
     if (!uri) {
-        return res.status(400).json({ error: 'URI is required' });
+        return res.status(400).json({ error: 'Invalid environment' });
     }
 
     try {
@@ -32,15 +76,15 @@ app.post('/api/connect', async (req, res) => {
         }
         client = new MongoClient(uri);
         await client.connect();
-        console.log('Connected to MongoDB');
-        res.json({ success: true, message: 'Connected successfully' });
+        console.log(`Connected to MongoDB (${environment})`);
+        res.json({ success: true, message: `Connected to ${environment} successfully` });
     } catch (error) {
         console.error('Connection failed:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-app.get('/api/databases', requireConnection, async (req, res) => {
+app.get('/api/databases', authenticateToken, requireConnection, async (req, res) => {
     try {
         const adminDb = client.db().admin();
         const result = await adminDb.listDatabases();
@@ -65,7 +109,7 @@ app.get('/api/databases', requireConnection, async (req, res) => {
     }
 });
 
-app.get('/api/collections/:dbName', requireConnection, async (req, res) => {
+app.get('/api/collections/:dbName', authenticateToken, requireConnection, async (req, res) => {
     try {
         const { dbName } = req.params;
         const db = client.db(dbName);
@@ -86,7 +130,7 @@ app.get('/api/collections/:dbName', requireConnection, async (req, res) => {
     }
 });
 
-app.get("/api/fields/:dbName/:collectionName", async (req, res) => {
+app.get("/api/fields/:dbName/:collectionName", authenticateToken, async (req, res) => {
     if (!client) {
         return res.status(400).json({ error: "Not connected to database" });
     }
@@ -112,7 +156,7 @@ app.get("/api/fields/:dbName/:collectionName", async (req, res) => {
     }
 });
 
-app.post('/api/execute', requireConnection, async (req, res) => {
+app.post('/api/execute', authenticateToken, requireConnection, async (req, res) => {
     const { query, dbName } = req.body;
 
     if (!query || !dbName) {

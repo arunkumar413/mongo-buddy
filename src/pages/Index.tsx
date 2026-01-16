@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { DatabaseSidebar } from "@/components/DatabaseSidebar";
 import { QueryEditor } from "@/components/QueryEditor";
@@ -31,6 +32,7 @@ db.products.find({ price: { $lt: 100 } })`;
 const API_URL = "http://localhost:3001/api";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [selectedCollection, setSelectedCollection] = useState<{
     db: string;
     collection: string;
@@ -44,7 +46,8 @@ const Index = () => {
   // Connection state
   const [isConnected, setIsConnected] = useState(false);
   const [showConnectDialog, setShowConnectDialog] = useState(true);
-  const [connectionUri, setConnectionUri] = useState("mongodb://localhost:27017");
+  const [environments, setEnvironments] = useState<string[]>([]);
+  const [selectedEnvironment, setSelectedEnvironment] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [databases, setDatabases] = useState<any[]>([]);
   const [collectionFields, setCollectionFields] = useState<string[]>([]);
@@ -58,6 +61,33 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("queryHistory", JSON.stringify(history));
   }, [history]);
+
+  useEffect(() => {
+    fetchEnvironments();
+  }, []);
+
+  const fetchEnvironments = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/environments`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.status === 401 || res.status === 403) {
+        navigate("/login");
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setEnvironments(data);
+        if (data.length > 0) {
+          setSelectedEnvironment(data[0]);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch environments:", err);
+      toast.error("Failed to load environments");
+    }
+  };
 
   const addToHistory = useCallback((queryStr: string, duration: string) => {
     setHistory(prev => {
@@ -76,13 +106,27 @@ const Index = () => {
   }, []);
 
   const handleConnect = async () => {
+    if (!selectedEnvironment) {
+      toast.error("Please select an environment");
+      return;
+    }
+
     setIsConnecting(true);
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_URL}/connect`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uri: connectionUri }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ environment: selectedEnvironment }),
       });
+
+      if (res.status === 401 || res.status === 403) {
+        navigate("/login");
+        return;
+      }
 
       if (!res.ok) {
         const data = await res.json();
@@ -91,7 +135,7 @@ const Index = () => {
 
       setIsConnected(true);
       setShowConnectDialog(false);
-      toast.success("Connected to MongoDB");
+      toast.success(`Connected to ${selectedEnvironment}`);
       fetchDatabases();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Connection failed");
@@ -102,7 +146,14 @@ const Index = () => {
 
   const fetchDatabases = async () => {
     try {
-      const res = await fetch(`${API_URL}/databases`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/databases`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.status === 401 || res.status === 403) {
+        navigate("/login");
+        return;
+      }
       if (!res.ok) throw new Error("Failed to fetch databases");
       const data = await res.json();
       setDatabases(data);
@@ -122,7 +173,14 @@ const Index = () => {
 
     // Fetch fields for the selected collection
     try {
-      const res = await fetch(`${API_URL}/fields/${db}/${collection}`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/fields/${db}/${collection}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.status === 401 || res.status === 403) {
+        navigate("/login");
+        return;
+      }
       if (res.ok) {
         const fields = await res.json();
         setCollectionFields(fields);
@@ -146,14 +204,23 @@ const Index = () => {
     const startTime = performance.now();
 
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_URL}/execute`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           query,
           dbName: selectedCollection.db
         }),
       });
+
+      if (res.status === 401 || res.status === 403) {
+        navigate("/login");
+        return;
+      }
 
       const data = await res.json();
 
@@ -255,13 +322,19 @@ const Index = () => {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="uri">Connection String</Label>
-              <Input
-                id="uri"
-                value={connectionUri}
-                onChange={(e) => setConnectionUri(e.target.value)}
-                placeholder="mongodb://localhost:27017"
-              />
+              <Label htmlFor="environment">Environment</Label>
+              <select
+                id="environment"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={selectedEnvironment}
+                onChange={(e) => setSelectedEnvironment(e.target.value)}
+              >
+                {environments.map((env) => (
+                  <option key={env} value={env}>
+                    {env}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <DialogFooter>
