@@ -43,6 +43,11 @@ interface Tab {
   executionTime: string | null;
 }
 
+const getCollectionFromQuery = (query: string): string | null => {
+  const match = query.match(/db\.([a-zA-Z0-9_]+)\./);
+  return match ? match[1] : null;
+};
+
 const Index = () => {
   const navigate = useNavigate();
   const [selectedCollection, setSelectedCollection] = useState<{
@@ -111,6 +116,8 @@ const Index = () => {
   }, [fetchEnvironments]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
+  const derivedCollection = getCollectionFromQuery(activeTab.query);
+  const displayCollection = derivedCollection || selectedCollection?.collection || null;
 
   const updateActiveTab = useCallback((updates: Partial<Tab>) => {
     setTabs((prev) =>
@@ -387,7 +394,7 @@ const Index = () => {
                     onExecute={handleExecuteQuery}
                     isExecuting={activeTab.isExecuting}
                     executionTime={activeTab.executionTime}
-                    activeCollection={selectedCollection?.collection || null}
+                    activeCollection={displayCollection}
                     fields={collectionFields}
                   />
                 </ResizablePanel>
