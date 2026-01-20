@@ -7,7 +7,7 @@
     "dev": "vite",
     "server": "cd server && node index.js",
     "dev:server": "cd server && npm run dev",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "dev:all": "node scripts/kill-port.js && concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
