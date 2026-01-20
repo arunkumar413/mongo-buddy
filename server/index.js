@@ -201,63 +201,37 @@ function getDotNotationKeys(obj, prefix = '') {
 // WARNING: This is a basic implementation and has security risks if exposed publicly.
 // It is intended for a local developer tool.
 async function executeQuery(db, queryStr) {
-    // Basic parsing logic
-    // Expected format: db.collection.find(...) or db.collection.aggregate(...)
+    // Create a proxy to handle db.collectionName
+    const proxyDb = new Proxy({}, {
+        get: (target, colName) => {
+            if (typeof colName !== 'string') return undefined;
+            return db.collection(colName);
+        }
+    });
 
-    // Remove 'db.' prefix if present
-    const cleanQuery = queryStr.trim();
+    // Execution context with common MongoDB types
+    const context = {
+        db: proxyDb,
+        ObjectId: require('mongodb').ObjectId,
+        ISODate: (d) => d ? new Date(d) : new Date(),
+        // Add other helpers if needed
+    };
 
-    // Regex to extract collection name and operation
-    const match = cleanQuery.match(/^db\.([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\((.*)\)$/s);
+    const keys = Object.keys(context);
+    const values = Object.values(context);
 
-    if (!match) {
-        throw new Error('Invalid query format. Use db.collection.operation(...)');
+    // Execute the query string
+    // We wrap it in an async function to support await if needed, 
+    // though most mongo driver methods return promises that we handle below.
+    const func = new Function(...keys, `return ${queryStr.trim()}`);
+    let result = await func(...values);
+
+    // If the result is a cursor, convert to array
+    if (result && typeof result.toArray === 'function') {
+        return await result.toArray();
     }
 
-    const [, collectionName, operation, argsStr] = match;
-    const collection = db.collection(collectionName);
-
-    if (typeof collection[operation] !== 'function') {
-        throw new Error(`Operation ${operation} not supported on collection`);
-    }
-
-    // Parse arguments
-    // This is the tricky part. We need to safely evaluate the arguments string to JSON/Objects.
-    // For now, we'll use a safer evaluation approach or JSON.parse if possible, 
-    // but MongoDB queries often contain non-JSON types like ObjectId, ISODate, etc.
-    // For this MVP, we will use `eval` with a restricted context or a library if available.
-    // Given the constraints and the "developer tool" nature, we'll use `new Function` with some context.
-
-    const args = parseArgs(argsStr);
-
-    let cursor = collection[operation](...args);
-
-    // Handle cursor methods like .sort(), .limit(), .toArray() if they are chained
-    // The current regex only captures the main call. 
-    // To support chaining, we'd need a more robust parser.
-    // For now, let's assume the user might want to see results, so if it's a cursor, we convert to array.
-
-    if (cursor && typeof cursor.toArray === 'function') {
-        const results = await cursor.toArray();
-        return results;
-    }
-
-    return cursor;
-}
-
-function parseArgs(argsStr) {
-    // This is a very naive parser. In a real app, use a proper JS parser.
-    // We want to support objects like { name: "John" } which isn't strict JSON.
-    try {
-        // Wrap in array to handle multiple arguments
-        // Replace common MongoDB types with placeholders or implementations if needed
-        // For now, let's just try to evaluate it as JS code returning an array of args
-        const func = new Function(`return [${argsStr}]`);
-        return func();
-    } catch (e) {
-        console.error("Error parsing arguments:", e);
-        throw new Error("Failed to parse query arguments. Ensure valid syntax.");
-    }
+    return result;
 }
 
 app.listen(port, () => {
