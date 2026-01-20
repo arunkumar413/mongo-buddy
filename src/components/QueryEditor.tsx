@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect } from "react";
 import Editor, { OnMount, useMonaco } from "@monaco-editor/react";
-import { Play, Save, Clock, Trash2, BookOpen } from "lucide-react";
+import { Play, Save, Clock, Trash2, BookOpen, AlignLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ interface QueryEditorProps {
   executionTime: string | null;
   activeCollection: string | null;
   fields?: string[];
+  collections?: string[];
 }
 
 export function QueryEditor({
@@ -34,6 +35,7 @@ export function QueryEditor({
   executionTime,
   activeCollection,
   fields = [],
+  collections = [],
 }: QueryEditorProps) {
   const editorRef = useRef<unknown>(null);
   const monaco = useMonaco();
@@ -51,7 +53,8 @@ export function QueryEditor({
       const provider = createMongoCompletionProvider(
         monaco,
         () => activeCollection,
-        fields
+        fields,
+        collections
       );
 
       completionProviderRef.current = monaco.languages.registerCompletionItemProvider(
@@ -65,11 +68,18 @@ export function QueryEditor({
         }
       };
     }
-  }, [monaco, activeCollection]);
+  }, [monaco, activeCollection, collections, fields]);
 
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
   };
+
+  const handleFormat = useCallback(() => {
+    if (editorRef.current) {
+      const editor = editorRef.current as { getAction: (id: string) => { run: () => void } };
+      editor.getAction("editor.action.formatDocument").run();
+    }
+  }, []);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -131,6 +141,20 @@ export function QueryEditor({
               </Button>
             </TooltipTrigger>
             <TooltipContent>Save Query</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleFormat}
+              >
+                <AlignLeft className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Format Query</TooltipContent>
           </Tooltip>
 
           <Tooltip>

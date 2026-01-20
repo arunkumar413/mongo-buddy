@@ -106,7 +106,8 @@ interface CompletionSuggestion {
 export function createMongoCompletionProvider(
   monaco: Monaco,
   getActiveCollection: () => string | null,
-  fields: string[] = []
+  fields: string[] = [],
+  collections: string[] = []
 ) {
   return {
     triggerCharacters: [".", "$", '"', "'", "{", ","],
@@ -128,9 +129,11 @@ export function createMongoCompletionProvider(
       const suggestions: CompletionSuggestion[] = [];
 
       // After "db." suggest collection names
-      if (textBeforeCursor.match(/db\.$/)) {
-        const collections = Object.keys(collectionFields);
-        collections.forEach((col) => {
+      if (textBeforeCursor.match(/db\.(\w*)$/)) {
+        // Use provided collections if available, otherwise fall back to static list keys for backward compatibility/demo
+        const colsToSuggest = collections.length > 0 ? collections : Object.keys(collectionFields);
+
+        colsToSuggest.forEach((col) => {
           suggestions.push({
             label: col,
             kind: monaco.languages.CompletionItemKind.Class,
@@ -143,7 +146,7 @@ export function createMongoCompletionProvider(
       }
 
       // After "db.collection." suggest methods
-      if (textBeforeCursor.match(/db\.\w+\.$/)) {
+      if (textBeforeCursor.match(/db\.\w+\.(\w*)$/)) {
         mongoMethods.forEach((method) => {
           suggestions.push({
             label: method.label,

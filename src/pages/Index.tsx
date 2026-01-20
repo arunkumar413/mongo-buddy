@@ -266,8 +266,26 @@ const Index = () => {
   }, [activeTabId, navigate]);
 
   const handleExecuteQuery = useCallback(async () => {
-    if (!selectedCollection) {
-      toast.error("Please select a collection first");
+    const parsedCollection = getCollectionFromQuery(activeTab.query);
+    let dbName = selectedCollection?.db;
+
+    // Try to find DB for the parsed collection
+    if (parsedCollection) {
+      const foundDb = databases.find(db =>
+        db.collections.some(c => c.name === parsedCollection)
+      );
+      if (foundDb) {
+        dbName = foundDb.name;
+      }
+    }
+
+    // Fallback to first DB if we have databases but no selection/match
+    if (!dbName && databases.length > 0) {
+      dbName = databases[0].name;
+    }
+
+    if (!dbName) {
+      toast.error("Please select a database or collection");
       return;
     }
 
@@ -284,7 +302,7 @@ const Index = () => {
         },
         body: JSON.stringify({
           query: activeTab.query,
-          dbName: selectedCollection.db
+          dbName: dbName
         }),
       });
 
@@ -316,7 +334,7 @@ const Index = () => {
         isExecuting: false
       });
     }
-  }, [activeTab.query, selectedCollection, updateActiveTab, addToHistory, navigate]);
+  }, [activeTab.query, selectedCollection, databases, updateActiveTab, addToHistory, navigate]);
 
   const handleSelectFromHistory = useCallback((historyQuery: string) => {
     updateActiveTab({ query: historyQuery });
@@ -396,6 +414,7 @@ const Index = () => {
                     executionTime={activeTab.executionTime}
                     activeCollection={displayCollection}
                     fields={collectionFields}
+                    collections={databases.flatMap(db => db.collections.map(c => c.name))}
                   />
                 </ResizablePanel>
 
